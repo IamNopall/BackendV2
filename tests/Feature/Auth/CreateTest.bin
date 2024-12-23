@@ -1,0 +1,54 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Post;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+
+class CreateTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_user_can_create_post()
+    {
+        // Simulate a user login
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        // Mock image storage
+        Storage::fake('public');
+        $file = UploadedFile::fake()->image('test-image.jpg');
+
+        // Simulate form data
+        $data = [
+            'title' => 'Test Post Title',
+        'content' => 'This is the content of the test post.',
+        'category' => 'Technology', // Add category here
+        'status' => 'published',     // Add status here
+        'image' => $file,
+        ];
+
+        // Send POST request to store post
+        $response = $this->post(route('posts.store'), $data);
+
+        // Assertions
+        $response->assertRedirect(route('posts.index'));
+        $response->assertSessionHas('success', 'Post created successfully.');
+
+        // Check database for post record
+        $this->assertDatabaseHas('posts', [
+            'title' => 'Test Post Title',
+            'content' => 'This is the content of the test post.',
+            'category' => 'Technology', // Ensure category is checked
+            'status' => 'published',     // Ensure status is checked
+        ]);
+
+        // Verify image was stored
+        $this->assertTrue(Storage::disk('public')->exists('images/' . $file->hashName()));
+
+    }
+}
